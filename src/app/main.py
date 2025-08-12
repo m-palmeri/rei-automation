@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from loguru import logger
 from redis import Redis
-from rq import Queue
+from rq import Queue, Retry
 from .settings import settings
 
 app = FastAPI(title="Notion Automation MVP")
@@ -12,10 +12,17 @@ q = Queue("default", connection=redis)
 def health():
     return {"ok": True}
 
+@app.on_event("startup")
+def _startup():
+    # create tables if missing
+    from app.db import init_db
+    init_db()
+
 @app.post("/enqueue-test")
 def enqueue_test(page_id: str):
     from worker.tasks import process_page
-    job = q.enqueue(process_page, {"page_id": page_id, "edit_ts": "demo"})
+    job = q.enqueue(process_page, {"page_id": page_id, "edit_ts": "demo"},
+                    retry=Retry(max=3, interval=[10, 30, 60]))
     logger.info(f"enqueued {job.id} for {page_id}")
     return {"job_id": job.id}
 
@@ -29,14 +36,16 @@ def poll_notion(debug: bool = False):
     for p in pages:
         pid = p["id"]
         ets = p["last_edited_time"]
-        # extract title from the page object returned by the query
+        # extract title (debug)
         title = ""
         props = p.get("properties", {})
-        for name, prop in props.items():
+        for _, prop in props.items():
             if prop.get("type") == "title":
                 title = "".join([t.get("plain_text", "") for t in prop.get("title", [])]).strip()
                 break
-        q.enqueue("worker.tasks.process_page", {"page_id": pid, "edit_ts": ets})
+
+        q.enqueue("worker.tasks.process_page", {"page_id": pid, "edit_ts": ets},
+                  retry=Retry(max=3, interval=[10, 30, 60]))
         if debug:
             summaries.append({"id": pid, "title": title, "last_edited_time": ets})
 
