@@ -5,7 +5,6 @@ from rq import Queue
 from .settings import settings
 
 app = FastAPI(title="Notion Automation MVP")
-
 redis = Redis.from_url(settings.redis_url)
 q = Queue("default", connection=redis)
 
@@ -15,8 +14,8 @@ def health():
 
 @app.post("/enqueue-test")
 def enqueue_test(page_id: str):
-    # local import to avoid circulars during tooling
-    from ..worker.tasks import process_page
+    # ✅ use absolute import so it works when running as a top-level app
+    from worker.tasks import process_page
     job = q.enqueue(process_page, {"page_id": page_id, "edit_ts": "demo"})
     logger.info(f"enqueued {job.id} for {page_id}")
     return {"job_id": job.id}
