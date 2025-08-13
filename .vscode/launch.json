@@ -1,0 +1,45 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "API (uvicorn)",
+      "type": "python",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "app.main:app",
+        "--reload",
+        "--app-dir",
+        "src"
+      ],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "env": {
+        "PYTHONPATH": "src"
+      },
+      "justMyCode": true
+    },
+    {
+      "name": "Worker (RQ simple, debug)",
+      "type": "python",
+      "request": "launch",
+      "module": "worker.run_worker",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "RQ_SIMPLE": "1"
+      },
+      "justMyCode": true
+    }
+  ],
+  "compounds": [
+    {
+      "name": "App + Worker",
+      "configurations": [
+        "API (uvicorn)",
+        "Worker (RQ simple, debug)"
+      ]
+    }
+  ]
+}
