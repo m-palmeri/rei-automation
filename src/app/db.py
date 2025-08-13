@@ -12,9 +12,16 @@ CREATE TABLE IF NOT EXISTS page_state (
   page_id TEXT PRIMARY KEY,
   last_processed_edit TIMESTAMPTZ,
   last_seen_edit TIMESTAMPTZ,
+  drive_folder_id TEXT,
+  drive_link TEXT,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 """
+
+ALTERS = [
+    "ALTER TABLE page_state ADD COLUMN IF NOT EXISTS drive_folder_id TEXT;",
+    "ALTER TABLE page_state ADD COLUMN IF NOT EXISTS drive_link TEXT;"
+]
 
 DDL_DLQ = """
 CREATE TABLE IF NOT EXISTS dlq (
@@ -31,8 +38,26 @@ def init_db():
         raise RuntimeError("DATABASE_URL not set")
     with psycopg.connect(DB_URL, autocommit=True) as conn, conn.cursor() as cur:
         cur.execute(DDL_PAGE_STATE)
-        cur.execute(DDL_DLQ)
+        for stmt in ALTERS:
+            cur.execute(stmt)
     logger.info("DB initialized (page_state, dlq).")
+
+def get_drive_info(page_id: str):
+    with psycopg.connect(DB_URL) as conn, conn.cursor() as cur:
+        cur.execute("SELECT drive_folder_id, drive_link FROM page_state WHERE page_id=%s", (page_id,))
+        row = cur.fetchone()
+        return (row[0], row[1]) if row else (None, None)
+
+def set_drive_info(page_id: str, folder_id: str, link: str):
+    with psycopg.connect(DB_URL, autocommit=True) as conn, conn.cursor() as cur:
+        cur.execute("""
+            INSERT INTO page_state (page_id, drive_folder_id, drive_link)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (page_id)
+            DO UPDATE SET drive_folder_id = EXCLUDED.drive_folder_id,
+                          drive_link = EXCLUDED.drive_link,
+                          updated_at = NOW()
+        """, (page_id, folder_id, link))
 
 def _parse_iso_z(ts: str) -> datetime:
     # Notion gives ISO8601 with 'Z'. Convert to aware datetime.

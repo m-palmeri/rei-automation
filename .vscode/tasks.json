@@ -1,0 +1,101 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "compose:up",
+      "type": "shell",
+      "command": "docker compose up -d redis postgres",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "api",
+      "type": "shell",
+      "command": "./.venv/bin/python -m uvicorn app.main:app --reload --app-dir src",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "worker",
+      "type": "shell",
+      "command": "PYTHONPATH=src RQ_SIMPLE=1 ./.venv/bin/python -m worker.run_worker",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "curl:poll",
+      "type": "shell",
+      "command": "bash -lc \"curl --retry-connrefused --retry 20 --retry-delay 1 -s -X POST 'http://127.0.0.1:8000/poll?debug=true' | python -m json.tool || true\"",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "dev:serve",
+      "type": "shell",
+      "command": "echo serving",
+      "dependsOn": [
+        "api",
+        "worker"
+      ],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    },
+    {
+      "label": "dev:all",
+      "type": "shell",
+      "command": "echo dev stack running",
+      "dependsOn": [
+        "compose:up",
+        "dev:serve"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "dev:all+poll",
+      "type": "shell",
+      "command": "echo dev stack running + poll",
+      "dependsOn": [
+        "dev:all",
+        "curl:poll"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "compose:down",
+      "type": "shell",
+      "command": "docker compose down",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "dev:stop",
+      "type": "shell",
+      "command": "echo stopping dev stack",
+      "dependsOn": [
+        "compose:down"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}

@@ -178,3 +178,4 @@ pyrightconfig.json
 
 # Local folders
 .state/
+.secrets/
