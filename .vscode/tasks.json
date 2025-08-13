@@ -4,7 +4,7 @@
     {
       "label": "compose:up",
       "type": "shell",
-      "command": "docker compose up -d",
+      "command": "docker compose up -d redis postgres",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
@@ -21,6 +21,7 @@
         "reveal": "always",
         "panel": "dedicated"
       },
+      "isBackground": true,
       "problemMatcher": []
     },
     {
@@ -46,15 +47,25 @@
       }
     },
     {
+      "label": "dev:serve",
+      "type": "shell",
+      "command": "echo serving",
+      "dependsOn": [
+        "api",
+        "worker"
+      ],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    },
+    {
       "label": "dev:all",
       "type": "shell",
       "command": "echo dev stack running",
       "dependsOn": [
         "compose:up",
-        "api",
-        "worker"
+        "dev:serve"
       ],
-      "dependsOrder": "parallel",
+      "dependsOrder": "sequence",
       "problemMatcher": []
     },
     {
