@@ -6,18 +6,15 @@
       "type": "python",
       "request": "launch",
       "module": "uvicorn",
-      "args": [
-        "app.main:app",
-        "--reload",
-        "--app-dir",
-        "src"
-      ],
+      "args": ["app.main:app", "--reload", "--app-dir", "src"],
       "cwd": "${workspaceFolder}",
       "envFile": "${workspaceFolder}/.env",
-      "env": {
-        "PYTHONPATH": "src"
-      },
-      "justMyCode": true
+      "env": { "PYTHONPATH": "${workspaceFolder}/src" },
+      "justMyCode": false,
+      "preLaunchTask": "compose:up",          // optional: bring Redis/Postgres up
+      "postDebugTask": "compose:down",        // optional: tear them down on stop
+      "console": "integratedTerminal",
+      "subProcess": true
     },
     {
       "name": "Worker (RQ simple, debug)",
@@ -30,16 +27,15 @@
         "PYTHONPATH": "${workspaceFolder}/src",
         "RQ_SIMPLE": "1"
       },
-      "justMyCode": true
+      "justMyCode": false,
+      "console": "integratedTerminal",
+      "subProcess": true
     }
   ],
   "compounds": [
     {
       "name": "App + Worker",
-      "configurations": [
-        "API (uvicorn)",
-        "Worker (RQ simple, debug)"
-      ]
+      "configurations": ["API (uvicorn)", "Worker (RQ simple, debug)"]
     }
   ]
 }
