@@ -3,8 +3,10 @@ from datetime import datetime, timezone
 
 import httpx
 from app.db import already_processed, dlq_put, get_drive_info, mark_processed, set_drive_info
-from app.gdrive import create_folder
+from drive.client import GoogleDriveClient
 from loguru import logger
+
+drive_client = GoogleDriveClient()
 
 NOTION_TOKEN = os.getenv("NOTION_TOKEN")
 NOTION_HEADERS = {
@@ -112,9 +114,12 @@ def process_page(payload: dict) -> dict:
             folder_id, link = existing_id, existing_link
             logger.info(f"[process_page] Drive exists id={page_id} folder={folder_id}")
         else:
-            folder_id, link = create_folder(title, anyone_with_link=True)
-            set_drive_info(page_id, folder_id, link)
-            logger.info(f"[process_page] Drive created id={page_id} folder={folder_id} link={link}")
+            folder = drive_client.create_folder(title, anyone_with_link=True)
+            set_drive_info(page_id, folder.id, folder.web_link)
+            logger.info(
+                "[process_page] Drive created ",
+                f"id={page_id} folder={folder.id} link={folder.web_link}",
+            )
 
         # Update the Notion page property with the Drive link
         _set_drive_link(page, page_id, link)
