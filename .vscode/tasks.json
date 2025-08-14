@@ -96,6 +96,21 @@
         "compose:down"
       ],
       "problemMatcher": []
+    },
+    {
+      "label": "lint",
+      "type": "shell",
+      "command": "ruff check . && ruff format --check ."
+    },
+    {
+      "label": "typecheck",
+      "type": "shell",
+      "command": "mypy src"
+    },
+    {
+      "label": "test",
+      "type": "shell",
+      "command": "pytest -q"
     }
   ]
 }
