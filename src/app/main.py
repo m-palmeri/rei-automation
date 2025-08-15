@@ -38,34 +38,37 @@ def enqueue_test(page_id: str) -> dict:
 
 @app.post("/poll")
 def poll_notion(debug: bool = False) -> dict:
-    from app.notion_client import load_cursor, query_db_since, save_cursor
+    from notion import NotionClient, NotionDatabase, PageSummary
 
-    cursor = load_cursor()
-    pages, max_ts = query_db_since(cursor)
+    # Initialize client and database
+    client = NotionClient()
+    db = NotionDatabase(client)
 
-    summaries = []
-    for p in pages:
-        pid = p["id"]
-        ets = p["last_edited_time"]
-        # extract title (debug)
-        title = ""
-        props = p.get("properties", {})
-        for _, prop in props.items():
-            if prop.get("type") == "title":
-                title = "".join([t.get("plain_text", "") for t in prop.get("title", [])]).strip()
-                break
+    # Query for updated pages
+    cursor = db.load_cursor()
+    pages, max_ts = db.query_since(cursor)
+    db.save_cursor(max_ts)
 
+    # Process pages
+    for page in pages:
+        page_id = page["id"]
+        edit_ts = page["last_edited_time"]
         q.enqueue(
             "worker.tasks.process_page",
-            {"page_id": pid, "edit_ts": ets},
+            {"page_id": page_id, "edit_ts": edit_ts},
             retry=Retry(max=3, interval=[10, 30, 60]),
         )
-        if debug:
-            summaries.append({"id": pid, "title": title, "last_edited_time": ets})
 
-    save_cursor(max_ts)
+    # Prepare response
     out = {"enqueued": len(pages), "cursor": max_ts}
     if debug:
-        out["pages"] = summaries
+        out["pages"] = [
+            PageSummary(
+                id=p["id"],
+                title=NotionClient.extract_plain_text(p["properties"].get("title", {})),
+                last_edited_time=p["last_edited_time"],
+            )
+            for p in pages
+        ]
     logger.info(f"poll: enqueued={len(pages)} new_cursor={max_ts}")
     return out
