@@ -54,21 +54,31 @@ class GoogleDriveFolder:
         # TODO: Implement file upload functionality
         return ""  # stub return
 
-    def search(self, query: str, recursive: bool = False) -> list["GoogleDriveFolder"]:
+    def search(
+        self,
+        query: str,
+        recursive: bool = False,
+        exact_match: bool = False,
+        folders_only: bool = True,
+    ) -> list["GoogleDriveFolder"]:
         """Search for items within this folder.
 
         Args:
-            query: Search query
+            query: Search query for name matching
             recursive: If True, searches in all subfolders
+            exact_match: If True, looks for exact name matches, otherwise uses contains
+            folders_only: If True, only returns folders (not files)
 
         Returns:
             List of matching GoogleDriveFolder objects
-
-        Note:
-            This is a stub - implementation needed
         """
-        # TODO: Implement search functionality
-        return []  # stub return
+        return self.client.search(
+            query=query,
+            parent_id=self.id,
+            recursive=recursive,
+            exact_match=exact_match,
+            folders_only=folders_only,
+        )
 
     def copy_from(self, source_folder: "GoogleDriveFolder") -> None:
         """Copy all contents from another folder into this one.

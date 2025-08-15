@@ -99,24 +99,96 @@ class GoogleDriveClient:
             logger.exception(f"Drive API error: {e}")
             raise
 
+    def search(
+        self,
+        query: str,
+        parent_id: Optional[str] = None,
+        recursive: bool = False,
+        exact_match: bool = True,
+        folders_only: bool = True,
+        limit: Optional[int] = None,
+    ) -> list[GoogleDriveFolder]:
+        """Search for items in Google Drive.
+
+        Args:
+            query: The search query (name to match)
+            parent_id: ID of the parent folder to search in. If not provided, uses root_folder_id
+            recursive: If True, searches in all subfolders
+            exact_match: If True, looks for exact name matches, otherwise uses contains
+            folders_only: If True, only returns folders (not files)
+            limit: Maximum number of results to return. If None, returns all matches
+
+        Returns:
+            List of matching GoogleDriveFolder objects. Empty list if nothing found.
+        """
+        # Build search query
+        query_parts = []
+
+        # Type constraint
+        if folders_only:
+            query_parts.append("mimeType = 'application/vnd.google-apps.folder'")
+
+        # Name constraint
+        if exact_match:
+            query_parts.append(f"name = '{query}'")
+        else:
+            query_parts.append(f"name contains '{query}'")
+
+        # Add parent constraint if specified and not searching recursively
+        if not recursive:
+            search_parent = parent_id or self.root_folder_id
+            if search_parent:
+                query_parts.append(f"'{search_parent}' in parents")
+            else:
+                query_parts.append("'root' in parents")
+
+        try:
+            # Search for matching items
+            results = (
+                self.service.files()
+                .list(
+                    q=" and ".join(query_parts),
+                    spaces="drive",
+                    fields="files(id, name, webViewLink)",
+                    pageSize=limit,
+                )
+                .execute()
+            )
+
+            # Convert results to folder objects
+            return [
+                GoogleDriveFolder(
+                    self, folder_id=item["id"], name=item["name"], web_link=item.get("webViewLink")
+                )
+                for item in results.get("files", [])
+            ]
+
+        except HttpError as e:
+            logger.exception(f"Drive API error: {e}")
+            raise
+
     def find_folder(
         self, name: str, parent_id: Optional[str] = None, recursive: bool = False
     ) -> Optional[GoogleDriveFolder]:
-        """Search for a folder by name.
+        """Find a single folder by exact name match. Convenience wrapper around search().
 
         Args:
-            name: Name of the folder to find
+            name: Name of the folder to find (exact match)
             parent_id: ID of the parent folder to search in. If not provided, uses root_folder_id
             recursive: If True, searches in all subfolders
 
         Returns:
             GoogleDriveFolder if found, None otherwise
-
-        Note:
-            This is a stub - implementation needed
         """
-        # TODO: Implement folder search functionality
-        pass
+        results = self.search(
+            query=name,
+            parent_id=parent_id,
+            recursive=recursive,
+            exact_match=True,
+            folders_only=True,
+            limit=1,
+        )
+        return results[0] if results else None
 
     def get_folder(self, folder_id: str) -> GoogleDriveFolder:
         """Get a folder object by its ID.
