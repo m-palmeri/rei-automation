@@ -22,7 +22,7 @@ class NotionPage:
         self.client = client
         self.id = page_id
         self._data: Optional[Dict[str, Any]] = None
-        self._pending_updates: Dict[str, Dict[str, Any]] = {}
+        self._pending_updates: Dict[str, Any] = {}
 
     def refresh(self) -> None:
         """Refresh the page data from Notion."""
@@ -70,7 +70,7 @@ class NotionPage:
 
         # Prepare the update based on property type
         if prop_type == "url":
-            prop_value = {"url": value}
+            prop_value: dict[str, Any] = {"url": value}
         elif prop_type == "rich_text":
             prop_value = {"rich_text": [{"type": "text", "text": {"content": value}}]}
         else:
