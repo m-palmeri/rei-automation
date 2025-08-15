@@ -2,11 +2,15 @@ import os
 from datetime import datetime, timezone
 
 import httpx
-from app.db import already_processed, dlq_put, get_drive_info, mark_processed, set_drive_info
+from app.db import get_or_create_folder
+from app.models.dlq import DLQ
+from app.models.page_state import PageState
 from drive.client import GoogleDriveClient
 from loguru import logger
 
 drive_client = GoogleDriveClient()
+_page_state = PageState()
+_dlq = DLQ()
 
 NOTION_TOKEN = os.getenv("NOTION_TOKEN")
 NOTION_HEADERS = {
@@ -99,7 +103,7 @@ def process_page(payload: dict) -> dict:
         edit_ts = datetime.now(timezone.utc).isoformat()
 
     # If we've already fully processed this exact edit, skip
-    if already_processed(page_id, edit_ts):
+    if _page_state.already_processed(page_id, edit_ts):
         logger.info(f"[process_page] SKIP id={page_id} edit_ts={edit_ts}")
         return {"status": "skip", "page_id": page_id}
 
@@ -109,32 +113,23 @@ def process_page(payload: dict) -> dict:
         title = _page_title_from_obj(page) or f"notion-page-{page_id[-6:]}"
 
         # Avoid duplicate folder creation if we’ve done it before
-        existing_id, existing_link = get_drive_info(page_id)
-        if existing_id and existing_link:
-            folder_id, link = existing_id, existing_link
-            logger.info(f"[process_page] Drive exists id={page_id} folder={folder_id}")
-        else:
-            folder = drive_client.create_folder(title, anyone_with_link=True)
-            set_drive_info(page_id, folder.id, folder.web_link)
-            logger.info(
-                "[process_page] Drive created ",
-                f"id={page_id} folder={folder.id} link={folder.web_link}",
-            )
+        folder_id, web_link = get_or_create_folder(drive_client, page_id, title)
+        logger.info(f"[process_page] Drive folder ready id={page_id} folder={folder_id}")
 
         # Update the Notion page property with the Drive link
-        _set_drive_link(page, page_id, link)
+        _set_drive_link(page, page_id, web_link)
 
-        mark_processed(page_id, edit_ts)
+        _page_state.mark_processed(page_id, edit_ts)
         return {
             "status": "ok",
             "page_id": page_id,
             "title": title,
             "drive_folder_id": folder_id,
-            "drive_link": link,
+            "drive_link": web_link,
         }
 
     except Exception as e:
         err = f"{type(e).__name__}: {e}"
-        dlq_put(page_id, edit_ts, err)
+        _dlq.put(page_id, edit_ts, err)
         logger.exception(f"[process_page] ERROR id={page_id} -> {err}")
         raise
