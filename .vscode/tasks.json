@@ -40,7 +40,7 @@
     {
       "label": "curl:poll",
       "type": "shell",
-      "command": "bash -lc \"curl --retry-connrefused --retry 20 --retry-delay 1 -s -X POST 'http://127.0.0.1:8000/poll?debug=true' | python -m json.tool || true\"",
+      "command": "curl --retry-connrefused --retry 20 --retry-delay 1 -s -X POST 'http://127.0.0.1:8000/poll?debug=true'",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
@@ -60,21 +60,10 @@
     {
       "label": "dev:all",
       "type": "shell",
-      "command": "echo dev stack running",
+      "command": "echo 'Services starting...'",
       "dependsOn": [
         "compose:up",
         "dev:serve"
-      ],
-      "dependsOrder": "sequence",
-      "problemMatcher": []
-    },
-    {
-      "label": "dev:all+poll",
-      "type": "shell",
-      "command": "echo dev stack running + poll",
-      "dependsOn": [
-        "dev:all",
-        "curl:poll"
       ],
       "dependsOrder": "sequence",
       "problemMatcher": []
